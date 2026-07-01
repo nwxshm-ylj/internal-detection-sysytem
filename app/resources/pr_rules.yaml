@@ -1,0 +1,14 @@
+version: "2025-01-01"
+
+door_trim_color:
+  default: null
+  candidates:
+    - value: panel_yellow
+      exact_items: ["MCK~08Z"]
+      priority: 100
+    - value: panel_black
+      exact_items: ["MCK~08Y"]
+      priority: 90
+    - value: panel_grey
+      exact_items: ["MCK~08W"]
+      priority: 80

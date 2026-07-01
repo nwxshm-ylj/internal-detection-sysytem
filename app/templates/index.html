@@ -1,0 +1,840 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>鍙岀浉鏈鸿嚜鍔ㄦ媿鎽勬娴嬶紙鎵嬫満绔?/ 绂荤嚎鎵爜锛?/title>
+
+  <style>
+    :root{
+      --bg:#f6f7f9; --card:#fff; --text:#111; --muted:#667085; --border:#e6e8ee;
+      --ok:#0a8f3d; --ng:#d64545; --warn:#b8860b; --btn:#1f6feb; --btn2:#0b57d0;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px 12px 96px}
+    .toolbar{position:sticky;top:0;z-index:10;background:rgba(246,247,249,.92);backdrop-filter:blur(8px);padding:10px 0;margin-bottom:10px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    button{border:1px solid var(--border);background:#fff;padding:10px 14px;border-radius:10px;font-size:16px}
+    button.primary{background:var(--btn);border-color:var(--btn);color:#fff}
+    button.primary:hover{background:var(--btn2);border-color:var(--btn2)}
+    button:disabled{opacity:.55}
+    input{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);outline:none;width:100%}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(16,24,40,.06)}
+    .video-wrap{position:relative}
+    video{width:100%;max-height:58vh;background:#000;display:block}
+
+    .statusline{font-size:13px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+    @media (min-width:900px){.grid{grid-template-columns: 1fr 1fr}}
+
+    .badge{display:inline-flex;align-items:center;gap:8px;font-weight:800;padding:8px 12px;border-radius:999px;color:#fff}
+    .badge.idle{background:#6b7280}
+    .badge.ok{background:var(--ok)}
+    .badge.ng{background:var(--ng)}
+    .badge.warn{background:var(--warn)}
+
+    .kv{border:1px dashed var(--border);border-radius:12px;padding:10px 12px;background:#fafbff}
+    .k{font-size:12px;color:var(--muted);margin-bottom:4px}
+    .v{font-size:16px;font-weight:700;word-break:break-all}
+    .sub{margin-top:6px;font-size:12px;color:var(--muted);white-space:pre-wrap}
+
+    .step{margin-top:10px;padding:12px}
+    .step .title{font-size:14px;color:var(--muted);margin-bottom:8px}
+    .step .big{font-size:18px;font-weight:800}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+
+    details{margin-top:10px}
+    pre{white-space:pre-wrap;word-break:break-word;font-size:12px;margin:10px 0 0;color:#0a7a33}
+
+    .overlay{
+      position:absolute; inset:0; display:flex; flex-direction:column; justify-content:flex-end;
+      padding:10px; pointer-events:none;
+    }
+    .overlay .chip{
+      align-self:flex-start; background:rgba(17,17,17,.55); color:#fff; padding:6px 10px; border-radius:999px;
+      font-size:12px; font-weight:700;
+    }
+
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+      align-items:center; justify-content:center; padding:16px; z-index:9999;
+    }
+    .modal{
+      width:min(520px, 100%); background:#fff; border-radius:14px; border:1px solid var(--border);
+      box-shadow:0 18px 50px rgba(0,0,0,.25); overflow:hidden;
+    }
+    .modal-head{padding:12px 14px; border-bottom:1px solid var(--border); font-weight:800}
+    .modal-body{padding:14px}
+    .modal-foot{padding:12px 14px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap}
+    .modal .muted{color:var(--muted); font-size:13px; margin-top:8px; line-height:1.4}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  </style>
+
+  <!-- 鉁?绂荤嚎鏈湴 ZXing锛氳鎶?zxing.min.js 鏀惧埌浣犵殑 static/zxing/ 鐩綍 -->
+  <!-- Flask 妯℃澘鍐欐硶锛?-->
+  <script src="{{ url_for('static', filename='index.min.js') }}"></script>
+
+  <!-- 濡傛灉浣犱笉鏄ā鏉匡紙绾潤鎬侊級锛屾敼鎴愶細 <script src="/static/zxing/zxing.min.js"></script> -->
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="toolbar">
+    <div class="row">
+      <button id="btnAllow" class="primary">1. 鍏佽鎽勫儚澶?/button>
+      <button id="btnScan" disabled>2. 鎵弿鏉＄爜</button>
+      <button id="btnStart" disabled class="primary">3. 寮€濮嬭嚜鍔ㄦ媿鎽?/button>
+      <button id="btnAbort" disabled>鍙栨秷/閲嶆潵</button>
+      <span id="status" class="statusline">鐘舵€侊細鏈惎鍔?/span>
+    </div>
+  </div>
+
+  <div class="card video-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="overlay">
+      <div id="camChip" class="chip">CAM锛氭湭寮€鍚?/div>
+    </div>
+  </div>
+
+  <div class="card step">
+    <div class="title">褰撳墠姝ラ</div>
+    <div class="big" id="stepText">绛夊緟寮€濮?/div>
+
+    <div class="grid">
+      <div class="kv">
+        <div class="k">VIN锛堟壂鐮?鎵嬪姩杈撳叆锛?/div>
+        <div class="v"><span id="vinPreview">锛堟湭璇嗗埆锛?/span></div>
+        <div class="sub">鎵爜鍛戒腑鍚庝細寮圭獥纭锛涗篃鍙墜鍔ㄨ緭鍏?VIN 鍚庣偣鍑烩€滃紑濮嬭嚜鍔ㄦ媿鎽勨€濄€?/div>
+        <div style="margin-top:8px;">
+          <input id="vinInput" placeholder="鎵嬪姩杈撳叆 VIN锛堝彲閫夛級" />
+        </div>
+      </div>
+
+      <div class="kv">
+        <div class="k">鍊掕鏃?/ 璁″垝</div>
+        <div class="v" id="countdownText">-</div>
+        <div class="sub">纭 VIN 鈫?10s 鍊掕鏃?鈫?鍚庣疆鎷嶆憚妫€娴?鈫?鍓嶇疆鎷嶆憚妫€娴?鈫?鑷姩鍏抽棴鎽勫儚澶?/div>
+      </div>
+    </div>
+
+    <div class="hint">
+      鎵嬫満绔繀椤讳娇鐢?<b>HTTPS</b> 璁块棶鏈〉闈紝鍚﹀垯娴忚鍣ㄤ細绂佹璋冪敤鎽勫儚澶达紙HTTP 涓嬪繀澶辫触锛夈€?
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:12px">
+
+    <!-- 鍚庣疆缁撴灉鍗?-->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
+        <div id="rear_overallBadge" class="badge idle">鍚庣疆锛氱瓑寰呮娴?/div>
+        <div class="statusline">
+          <div>record_id锛?span id="rear_recordId">-</span></div>
+          <div>event_id锛?span id="rear_eventId">-</span></div>
+        </div>
+      </div>
+
+      <div class="grid" style="padding:12px;grid-template-columns:1fr;gap:10px">
+        <div class="kv">
+          <div class="k">闂ㄥ唴楗版潯棰滆壊锛堟爣鍑?/ 璇嗗埆锛?/div>
+          <div class="v" id="rear_doorResult">-</div>
+          <div class="sub" id="rear_doorDetail">-</div>
+        </div>
+        <div class="kv">
+          <div class="k">鍥剧墖璺緞 / 骞傜瓑</div>
+          <div class="v" id="rear_imgPath">-</div>
+          <div class="sub" id="rear_idemHit">-</div>
+        </div>
+        <div class="kv">
+          <div class="k">鎺ㄧ悊 meta</div>
+          <div class="v" id="rear_scoreLine">-</div>
+          <div class="sub" id="rear_distLine">-</div>
+        </div>
+        <div class="kv">
+          <div class="k">鎽樿</div>
+          <div class="v" id="rear_summaryLine">-</div>
+          <div class="sub">瀹屾暣 JSON 瑙佽皟璇曞尯</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 鍓嶇疆缁撴灉鍗?-->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap">
+        <div id="front_overallBadge" class="badge idle">鍓嶇疆锛氱瓑寰呮娴?/div>
+        <div class="statusline">
+          <div>record_id锛?span id="front_recordId">-</span></div>
+          <div>event_id锛?span id="front_eventId">-</span></div>
+        </div>
+      </div>
+
+      <div class="grid" style="padding:12px;grid-template-columns:1fr;gap:10px">
+        <div class="kv">
+          <div class="k">闂ㄥ唴楗版潯棰滆壊锛堟爣鍑?/ 璇嗗埆锛?/div>
+          <div class="v" id="front_doorResult">-</div>
+          <div class="sub" id="front_doorDetail">-</div>
+        </div>
+        <div class="kv">
+          <div class="k">鍥剧墖璺緞 / 骞傜瓑</div>
+          <div class="v" id="front_imgPath">-</div>
+          <div class="sub" id="front_idemHit">-</div>
+        </div>
+        <div class="kv">
+          <div class="k">鎺ㄧ悊 meta</div>
+          <div class="v" id="front_scoreLine">-</div>
+          <div class="sub" id="front_distLine">-</div>
+        </div>
+        <div class="kv">
+          <div class="k">鎽樿</div>
+          <div class="v" id="front_summaryLine">-</div>
+          <div class="sub">瀹屾暣 JSON 瑙佽皟璇曞尯</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <details class="card" style="padding:12px;margin-top:10px">
+    <summary style="cursor:pointer;font-weight:700;color:var(--muted)">璋冭瘯淇℃伅锛堝睍寮€鏌ョ湅锛?/summary>
+    <pre id="log"></pre>
+  </details>
+
+</div>
+
+<!-- VIN 纭妯℃€?-->
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-head">纭 VIN</div>
+    <div class="modal-body">
+      <div>鎵爜璇嗗埆鍒帮細</div>
+      <div style="margin-top:8px;font-size:18px;font-weight:900" class="mono" id="modalVin">-</div>
+      <div class="muted">
+        鐐瑰嚮鈥滅‘璁ゅ苟寮€濮嬧€濆皢杩涘叆 10 绉掑€掕鏃讹紝鐒跺悗鑷姩鍚庣疆鈫掑墠缃媿鎽勫苟妫€娴嬶紝鏈€鍚庤嚜鍔ㄥ叧闂憚鍍忓ご銆?br>
+        鐐瑰嚮鈥滃彇娑堚€濆皢缁х画鎵爜銆?
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="modalCancel">鍙栨秷锛堢户缁壂鐮侊級</button>
+      <button id="modalOk" class="primary">纭骞跺紑濮?/button>
+    </div>
+  </div>
+</div>
+
+<script>
+/** =========================
+ *  閰嶇疆
+ ========================== */
+const API_INSPECTION = "/api/v1/inspection";
+
+/** =========================
+ *  鐘舵€佹満
+ ========================== */
+const S = {
+  INIT: "INIT",
+  CAMERA_READY: "CAMERA_READY",
+  SCANNING: "SCANNING",
+  VIN_READY: "VIN_READY",
+  COUNTDOWN: "COUNTDOWN",
+  RUNNING: "RUNNING",
+  DONE: "DONE",
+};
+let state = S.INIT;
+
+/** =========================
+ *  DOM
+ ========================== */
+const el = {
+  video: document.getElementById("video"),
+  camChip: document.getElementById("camChip"),
+  status: document.getElementById("status"),
+  stepText: document.getElementById("stepText"),
+  countdownText: document.getElementById("countdownText"),
+
+  vinPreview: document.getElementById("vinPreview"),
+  vinInput: document.getElementById("vinInput"),
+
+  btnAllow: document.getElementById("btnAllow"),
+  btnScan: document.getElementById("btnScan"),
+  btnStart: document.getElementById("btnStart"),
+  btnAbort: document.getElementById("btnAbort"),
+
+  log: document.getElementById("log"),
+
+  modalBackdrop: document.getElementById("modalBackdrop"),
+  modalVin: document.getElementById("modalVin"),
+  modalCancel: document.getElementById("modalCancel"),
+  modalOk: document.getElementById("modalOk"),
+};
+
+let stream = null;
+let scanTimer = null;
+let countdownTimer = null;
+
+let scanBusy = false;    // 鉁?闃插苟鍙戦噸鍏ワ紙鎵爜锛?
+let pendingVin = "";
+let currentVin = "";
+let clientEventId = "";
+let rearResp = null;
+let frontResp = null;
+
+/** =========================
+ *  宸ュ叿
+ ========================== */
+function setStatus(t){ el.status.textContent = "鐘舵€侊細" + t; }
+function setStep(t){ el.stepText.textContent = t; }
+function log(o){ el.log.textContent = (typeof o==="string") ? o : JSON.stringify(o,null,2); }
+
+function normalizeVin(t){ return (t||"").trim().replace(/\s+/g,""); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function newEventId(){
+  if (crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "evt_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+}
+
+function applyState(){
+  const camOn = !!stream;
+  el.btnAllow.disabled = (state !== S.INIT);
+  el.btnScan.disabled  = !(state === S.CAMERA_READY || state === S.VIN_READY);
+  el.btnStart.disabled = !(state === S.VIN_READY);
+  el.btnAbort.disabled = (state === S.INIT);
+  if (!camOn) el.camChip.textContent = "CAM锛氭湭寮€鍚?;
+}
+
+async function waitVideoReady(video, timeoutMs = 3500){
+  const start = Date.now();
+  try { await video.play(); } catch(e) {}
+  while ((video.videoWidth === 0 || video.videoHeight === 0) && Date.now()-start < timeoutMs){
+    await sleep(50);
+  }
+  if (video.videoWidth === 0) throw new Error("瑙嗛鐢婚潰灏氭湭灏辩华锛堝彲鑳芥潈闄?HTTPS/娴忚鍣ㄩ檺鍒讹級");
+}
+
+/** =========================
+ *  鎽勫儚澶存帶鍒?
+ ========================== */
+async function stopStream(){
+  if (stream){
+    stream.getTracks().forEach(t=>t.stop());
+    stream = null;
+  }
+  el.video.srcObject = null;
+  el.camChip.textContent = "CAM锛氭湭寮€鍚?;
+}
+
+async function openCamera(facingMode /* 'environment'|'user' */){
+  if (!window.isSecureContext){
+    throw new Error("闇€瑕?HTTPS 鎵嶈兘鍦ㄦ墜鏈虹鍚敤鎽勫儚澶达紙褰撳墠闈炲畨鍏ㄤ笂涓嬫枃锛?);
+  }
+  if (!navigator.mediaDevices?.getUserMedia){
+    throw new Error("娴忚鍣ㄤ笉鏀寔 getUserMedia锛堝缓璁娇鐢ㄧ郴缁?Safari/Chrome锛?);
+  }
+
+  await stopStream();
+  await sleep(250); // 鉁?iOS 閲婃斁纭欢缂撳啿锛堟洿绋筹級
+
+  const constraints = {
+    video: { facingMode, width:{ideal:1920}, height:{ideal:1080} }, // 鉁?1D 鏉＄爜鏇撮渶瑕佸儚绱?
+    audio: false
+  };
+
+  stream = await navigator.mediaDevices.getUserMedia(constraints);
+  el.video.srcObject = stream;
+  await waitVideoReady(el.video, 3500);
+
+  el.camChip.textContent = "CAM锛? + (facingMode === "environment" ? "鍚庣疆" : "鍓嶇疆");
+}
+
+/** =========================
+ *  鎷嶇収
+ ========================== */
+async function captureJpegBlob(){
+  await waitVideoReady(el.video, 3500);
+  const canvas = document.createElement("canvas");
+  canvas.width = el.video.videoWidth;
+  canvas.height = el.video.videoHeight;
+  canvas.getContext("2d").drawImage(el.video, 0, 0);
+  return await new Promise((resolve,reject)=>{
+    canvas.toBlob(b=> b ? resolve(b) : reject(new Error("toBlob 澶辫触")), "image/jpeg", 0.85);
+  });
+}
+
+/** =========================
+ *  璋冪敤鍚庣
+ ========================== */
+async function postInspection({vin, blob, client_event_id, camera}){
+  const fd = new FormData();
+  fd.append("vin", vin);
+  fd.append("client_event_id", client_event_id);
+  fd.append("camera", camera);
+  fd.append("image", blob, `${camera}.jpg`);
+
+  const r = await fetch(API_INSPECTION, { method:"POST", body: fd });
+  const ct = (r.headers.get("content-type")||"").toLowerCase();
+  const text = await r.text();
+
+  if (!ct.includes("application/json")){
+    log(`鏈嶅姟绔湭杩斿洖JSON锛孒TTP=${r.status}\n\n${text.slice(0, 1500)}`);
+    throw new Error(`鏈嶅姟绔湭杩斿洖JSON锛孒TTP=${r.status}`);
+  }
+  return JSON.parse(text);
+}
+
+/** =========================
+ *  鍙岀粨鏋滄覆鏌?
+ ========================== */
+function setBadgeById(prefix, kind, text){
+  const b = document.getElementById(prefix + "overallBadge");
+  b.className = "badge " + kind;
+  b.textContent = text;
+}
+
+function renderResult(resp, prefix){
+  const data = resp?.data || null;
+
+  if (!data){
+    setBadgeById(prefix, "warn", (prefix==="rear_"?"鍚庣疆":"鍓嶇疆") + "锛氭棤缁撴灉");
+    document.getElementById(prefix+"summaryLine").textContent = "鏈嶅姟绔繑鍥炵己灏?data";
+    return;
+  }
+
+  const overall = (data.overall || "").toUpperCase();
+  const head = (prefix==="rear_") ? "鍚庣疆" : "鍓嶇疆";
+
+  if (overall === "OK") setBadgeById(prefix, "ok", `${head}锛歄K`);
+  else if (overall === "NG") setBadgeById(prefix, "ng", `${head}锛歂G`);
+  else setBadgeById(prefix, "warn", `${head}锛?{overall || "鏈煡"}`);
+
+  document.getElementById(prefix+"recordId").textContent = data.record_id ?? "-";
+  document.getElementById(prefix+"eventId").textContent  = data.client_event_id ?? "-";
+  document.getElementById(prefix+"imgPath").textContent  = data.image_path ?? "-";
+  document.getElementById(prefix+"idemHit").textContent  = "骞傜瓑鍛戒腑锛? + (data.idempotent_hit ? "鏄? : "鍚?);
+
+  const std = (((data.standard||{}).features||{}).door_trim_color) ?? null;
+  const det = ((data.detected||{}).door_trim_color) ?? null;
+  document.getElementById(prefix+"doorResult").textContent = `鏍囧噯锛?{std ?? "-"} 锝?璇嗗埆锛?{det ?? "-"}`;
+
+  const cr = (data.compare_result||{}).door_trim_color;
+  if (cr && typeof cr === "object"){
+    document.getElementById(prefix+"doorDetail").textContent =
+      `缁撹锛?{cr.result ?? "-"}\nmandatory锛?{cr.mandatory ?? "-"}\nreason锛?{cr.reason ?? "-"}`;
+  } else {
+    document.getElementById(prefix+"doorDetail").textContent = cr ?? "-";
+  }
+
+  const meta = (((data.detected||{})._meta||{}).door_trim_color) || {};
+  const conf = meta.conf != null ? Number(meta.conf).toFixed(3) : "-";
+  const dist = meta.selected_dist != null ? Number(meta.selected_dist).toFixed(2) : "-";
+  const thr  = meta.threshold != null ? Number(meta.threshold).toFixed(2) : "-";
+
+  document.getElementById(prefix+"scoreLine").textContent = `YOLO conf锛?{conf}`;
+  document.getElementById(prefix+"distLine").textContent  = `dist锛?{dist} 锝?threshold锛?{thr}`;
+  document.getElementById(prefix+"summaryLine").textContent =
+    `VIN=${data.vin ?? "-"} 锝?overall=${overall || "-"} 锝?trace=${resp.trace_id ?? "-"}`;
+}
+
+function resetCards(){
+  setBadgeById("rear_", "idle", "鍚庣疆锛氱瓑寰呮娴?);
+  setBadgeById("front_", "idle", "鍓嶇疆锛氱瓑寰呮娴?);
+
+  const ids = [
+    "rear_recordId","rear_eventId","rear_doorResult","rear_doorDetail","rear_imgPath","rear_idemHit","rear_scoreLine","rear_distLine","rear_summaryLine",
+    "front_recordId","front_eventId","front_doorResult","front_doorDetail","front_imgPath","front_idemHit","front_scoreLine","front_distLine","front_summaryLine",
+  ];
+  for (const id of ids){
+    const node = document.getElementById(id);
+    if (node) node.textContent = "-";
+  }
+}
+
+/** =========================
+ *  ZXing 鎵爜锛?D 鏉＄爜锛氬璺緞灏濊瘯 + 鏇寸ǔ鐨?ROI锛?
+ *  鍏抽敭鏀瑰姩锛?
+ *   - 涓嶅啀闄愬埗 POSSIBLE_FORMATS锛堝厛淇濊瘉鑳借瘑鍒級
+ *   - 涓嶅仛鍥哄畾闃堝€间簩鍊煎寲锛堝彧鐏板害锛岄伩鍏嶆潯绾规柇瑁傦級
+ *   - 1甯у唴澶氳矾寰勶細鐏板害ROI -> 褰╄壊ROI -> 鐏板害鍏ㄧ敾闈?
+ *   - Reader 鍗曚緥
+ ========================== */
+const scanCanvas = document.createElement("canvas");
+const scanCtx = scanCanvas.getContext("2d", { willReadFrequently:true });
+
+let ZXING_READER = null;
+
+function initZXingOnce(){
+  if (ZXING_READER) return;
+  if (typeof ZXing === "undefined"){
+    throw new Error("ZXing 鏈姞杞斤細璇风‘璁?static/zxing/zxing.min.js 宸叉纭儴缃插苟鍙闂?);
+  }
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  hints.set(ZXing.DecodeHintType.ALSO_INVERTED, true);
+  // 鉂椾笉璁剧疆 POSSIBLE_FORMATS锛氶伩鍏嶆潯鐮佹牸寮忎笉鍦ㄥ垪琛ㄥ鑷存案杩滆瘑鍒笉鍒?
+  ZXING_READER = new ZXing.BrowserMultiFormatReader(hints);
+}
+
+// 鉁?灞呬腑 ROI锛堟洿绗﹀悎鎵嬫満鎵爜锛?
+function getROI(video){
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const w = Math.floor(vw * 0.80);
+  const h = Math.floor(vh * 0.45);
+  const x = Math.floor((vw - w) / 2);
+  const y = Math.floor((vh - h) / 2);
+  return {x, y, w, h};
+}
+
+// 鉁?鍙伆搴︼紝涓嶅仛纭槇鍊间簩鍊煎寲
+function preprocessToBW(imgData){
+  const d = imgData.data;
+  for(let i=0;i<d.length;i+=4){
+    const g = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114)|0;
+    d[i]=d[i+1]=d[i+2]=g;
+  }
+  return imgData;
+}
+
+async function scanOnce(){
+  initZXingOnce();
+  await waitVideoReady(el.video, 3500);
+
+  const buildCanvas = (roi, scale, doGray) => {
+    scanCanvas.width = Math.floor(roi.w * scale);
+    scanCanvas.height = Math.floor(roi.h * scale);
+
+    scanCtx.drawImage(
+      el.video,
+      roi.x, roi.y, roi.w, roi.h,
+      0, 0, scanCanvas.width, scanCanvas.height
+    );
+
+    if (doGray){
+      let imgData = scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+      imgData = preprocessToBW(imgData);
+      scanCtx.putImageData(imgData,0,0);
+    }
+    return scanCanvas;
+  };
+
+  const tryDecode = async (canvas) => {
+    try{
+      if (typeof ZXING_READER.decodeFromCanvas === "function"){
+        const r = await ZXING_READER.decodeFromCanvas(canvas);
+        return r ? r.text : "";
+      }
+      const img = document.createElement("img");
+      img.src = canvas.toDataURL("image/png");
+      await new Promise((res,rej)=>{ img.onload=res; img.onerror=()=>rej(new Error("img load fail")); });
+      const r = await ZXING_READER.decodeFromImageElement(img);
+      return r ? r.text : "";
+    }catch(e){
+      return "";
+    }
+  };
+
+  // 1) 鐏板害灞呬腑 ROI锛堟渶绋筹級
+  const roi = getROI(el.video);
+  let out = await tryDecode(buildCanvas(roi, 2.0, true));
+  if (out) return out;
+
+  // 2) 褰╄壊灞呬腑 ROI锛堟煇浜涙墦鍗?鍙嶅厜鎯呭喌涓嬫洿寮猴級
+  out = await tryDecode(buildCanvas(roi, 2.0, false));
+  if (out) return out;
+
+  // 3) 鐏板害鍏ㄧ敾闈紙鎺掗櫎 ROI 涓嶅锛?
+  const full = {x:0, y:0, w:el.video.videoWidth, h:el.video.videoHeight};
+  out = await tryDecode(buildCanvas(full, 1.0, true));
+  if (out) return out;
+
+  return "";
+}
+
+function stopScan(){
+  if (scanTimer){ clearInterval(scanTimer); scanTimer=null; }
+  scanBusy = false;
+}
+
+function showVinConfirmModal(vin){
+  el.modalVin.textContent = vin;
+  el.modalBackdrop.style.display = "flex";
+}
+function hideVinConfirmModal(){
+  el.modalBackdrop.style.display = "none";
+}
+
+function startScanLoop(){
+  stopScan();
+
+  const start = Date.now();
+  const maxMs = 12000; // 鉁?绋嶅井寤堕暱锛屾彁楂樺懡涓巼锛堝彲鎸夐渶璋冿級
+
+  scanTimer = setInterval(async ()=>{
+    if (state !== S.SCANNING) return;
+    if (scanBusy) return;
+    scanBusy = true;
+
+    try{
+      const txt = await scanOnce();
+      const vin = normalizeVin(txt);
+
+      if (vin){
+        stopScan();
+        pendingVin = vin;
+        el.vinPreview.textContent = pendingVin;
+        el.vinInput.value = pendingVin;
+
+        setStep("宸茶瘑鍒?VIN锛堢瓑寰呭脊绐楃‘璁わ級");
+        setStatus("VIN 宸茶瘑鍒紝绛夊緟纭");
+        showVinConfirmModal(pendingVin);
+        return;
+      }
+
+      if (Date.now()-start > maxMs){
+        stopScan();
+        state = S.CAMERA_READY;
+        setStep("鎵爜瓒呮椂锛堝彲閲嶈瘯鎴栨墜鍔ㄨ緭鍏?VIN锛?);
+        setStatus("鎵爜瓒呮椂");
+        applyState();
+      }
+    } finally {
+      scanBusy = false;
+    }
+  }, 180);
+}
+
+/** =========================
+ *  鍊掕鏃?+ 鍙岀浉鏈鸿嚜鍔ㄦ媿鎽?
+ ========================== */
+function stopCountdown(){
+  if (countdownTimer){ clearInterval(countdownTimer); countdownTimer=null; }
+}
+
+async function runCountdown(seconds){
+  stopCountdown();
+  state = S.COUNTDOWN;
+  applyState();
+
+  let left = seconds;
+  el.countdownText.textContent = `${left}s`;
+  setStep(`鍊掕鏃?${left}s 鍚庤嚜鍔ㄦ媿鎽勶紙鍚庣疆鈫掑墠缃級`);
+  setStatus(`鍊掕鏃朵腑 ${left}s`);
+
+  await new Promise((resolve)=>{
+    countdownTimer = setInterval(()=>{
+      left -= 1;
+      el.countdownText.textContent = `${Math.max(left,0)}s`;
+      setStatus(`鍊掕鏃朵腑 ${Math.max(left,0)}s`);
+      if (left <= 0){
+        stopCountdown();
+        resolve();
+      }
+    }, 1000);
+  });
+}
+
+async function runAutoFlow(){
+  if (!currentVin){
+    alert("VIN 涓虹┖锛氳鎵爜鎴栨墜鍔ㄨ緭鍏ュ悗鍐嶅紑濮?);
+    return;
+  }
+
+  resetCards();
+  log("");
+
+  clientEventId = newEventId(); // flow id
+  const rearEventId = `${clientEventId}_rear`;
+  const frontEventId = `${clientEventId}_front`;
+  rearResp = null;
+  frontResp = null;
+
+  state = S.RUNNING;
+  applyState();
+
+  try{
+    await runCountdown(10);
+
+    setStep("鑷姩鎷嶆憚锛氬悗缃憚鍍忓ご");
+    setStatus("鍚庣疆鎷嶆憚涓€?);
+    await openCamera("environment");
+    const rearBlob = await captureJpegBlob();
+
+    setStatus("鍚庣疆鎻愪氦妫€娴嬩腑鈥?);
+    rearResp = await postInspection({ vin: currentVin, blob: rearBlob, client_event_id: rearEventId, camera:"rear" });
+    renderResult(rearResp, "rear_");
+
+    setStep("鑷姩鎷嶆憚锛氬墠缃憚鍍忓ご");
+    setStatus("鍓嶇疆鎷嶆憚涓€?);
+    await openCamera("user");
+    const frontBlob = await captureJpegBlob();
+
+    setStatus("鍓嶇疆鎻愪氦妫€娴嬩腑鈥?);
+    frontResp = await postInspection({ vin: currentVin, blob: frontBlob, client_event_id: frontEventId, camera:"front" });
+    renderResult(frontResp, "front_");
+
+    setStep("妫€娴嬪畬鎴愶紙宸插睍绀哄悗缃?鍓嶇疆缁撴灉锛?);
+    setStatus("妫€娴嬪畬鎴?);
+    state = S.DONE;
+    applyState();
+
+    log({
+      vin: currentVin,
+      flow_event_id: clientEventId,
+      rear_event_id: rearEventId,
+      front_event_id: frontEventId,
+      rear: rearResp,
+      front: frontResp
+    });
+
+  } catch (err){
+    setStep("娴佺▼澶辫触锛堝凡涓锛?);
+    setStatus("娴佺▼澶辫触");
+    log("娴佺▼澶辫触锛? + (err?.message || String(err)));
+    alert("娴佺▼澶辫触锛? + (err?.message || String(err)));
+    state = S.CAMERA_READY;
+    applyState();
+  } finally {
+    // 鉁?鑷姩鍏抽棴鎽勫儚澶达紙鎴愬姛/澶辫触閮藉叧锛?
+    await stopStream();
+    el.countdownText.textContent = "-";
+  }
+}
+
+/** =========================
+ *  浜嬩欢缁戝畾
+ ========================== */
+el.btnAllow.onclick = async ()=>{
+  try{
+    setStep("鎵撳紑鎽勫儚澶达紙榛樿鍚庣疆锛?);
+    setStatus("鐢宠鎽勫儚澶存潈闄愨€?);
+    await openCamera("environment");
+
+    state = S.CAMERA_READY;
+    setStep("鎽勫儚澶村凡鎵撳紑锛氬彲鎵爜鎴栨墜鍔ㄨ緭鍏?VIN");
+    setStatus(`鎽勫儚澶村凡鎵撳紑锛?{el.video.videoWidth}x${el.video.videoHeight}锛塦);
+    applyState();
+  } catch (err){
+    state = S.INIT;
+    applyState();
+    setStatus("鎵撳紑澶辫触");
+    log("鏃犳硶鎵撳紑鎽勫儚澶达細" + (err?.message || String(err)));
+    alert("鏃犳硶鎵撳紑鎽勫儚澶达細" + (err?.message || String(err)) + "\n锛堟墜鏈虹蹇呴』 HTTPS + 娴忚鍣ㄦ巿鏉冿級");
+  }
+};
+
+el.btnScan.onclick = ()=>{
+  if (!stream){ alert("璇峰厛鍏佽鎽勫儚澶?); return; }
+  pendingVin = "";
+  setStep("鎵爜涓紙鍛戒腑鍚庡脊绐楃‘璁わ級");
+  setStatus("鎵爜涓€?);
+  el.vinPreview.textContent = "鎵爜涓€?;
+
+  state = S.SCANNING;
+  applyState();
+  startScanLoop();
+};
+
+el.btnStart.onclick = async ()=>{
+  const vin = normalizeVin(el.vinInput.value || currentVin);
+  if (!vin){ alert("VIN 涓虹┖锛氳鎵爜鎴栨墜鍔ㄨ緭鍏?); return; }
+  currentVin = vin;
+  el.vinPreview.textContent = currentVin;
+
+  state = S.VIN_READY;
+  applyState();
+
+  await runAutoFlow();
+};
+
+el.btnAbort.onclick = async ()=>{
+  stopScan();
+  stopCountdown();
+  hideVinConfirmModal();
+
+  pendingVin = "";
+  currentVin = "";
+  clientEventId = "";
+  rearResp = null;
+  frontResp = null;
+
+  await stopStream();
+
+  el.vinPreview.textContent = "锛堟湭璇嗗埆锛?;
+  el.vinInput.value = "";
+  el.countdownText.textContent = "-";
+  resetCards();
+  log("");
+
+  state = S.INIT;
+  setStep("绛夊緟寮€濮?);
+  setStatus("宸查噸缃?);
+  applyState();
+};
+
+el.vinInput.addEventListener("keydown", (e)=>{
+  if (e.key === "Enter"){
+    const vin = normalizeVin(el.vinInput.value);
+    if (!vin) return;
+    currentVin = vin;
+    el.vinPreview.textContent = currentVin;
+    state = stream ? S.VIN_READY : S.INIT;
+    setStep(stream ? "VIN 宸茶緭鍏ワ細鍙紑濮嬭嚜鍔ㄦ媿鎽? : "璇峰厛鍏佽鎽勫儚澶?);
+    setStatus(stream ? "VIN 宸插氨缁? : "鏈惎鍔?);
+    applyState();
+  }
+});
+
+el.modalCancel.onclick = ()=>{
+  hideVinConfirmModal();
+  if (stream){
+    state = S.SCANNING;
+    setStep("缁х画鎵爜涓紙鍛戒腑鍚庡脊绐楃‘璁わ級");
+    setStatus("鎵爜涓€?);
+    applyState();
+    startScanLoop();
+  } else {
+    state = S.INIT;
+    applyState();
+  }
+};
+
+el.modalOk.onclick = async ()=>{
+  hideVinConfirmModal();
+
+  currentVin = normalizeVin(pendingVin || el.vinInput.value);
+  if (!currentVin){
+    alert("VIN 涓虹┖锛屾棤娉曞紑濮?);
+    if (stream){
+      state = S.SCANNING; applyState(); startScanLoop();
+    }
+    return;
+  }
+
+  el.vinPreview.textContent = currentVin;
+  el.vinInput.value = currentVin;
+
+  state = S.VIN_READY;
+  setStep("VIN 宸茬‘璁わ細鍗冲皢杩涘叆 10s 鍊掕鏃?);
+  setStatus("VIN 宸茬‘璁?);
+  applyState();
+
+  await runAutoFlow();
+};
+
+el.modalBackdrop.addEventListener("click", (e)=>{
+  if (e.target === el.modalBackdrop){
+    el.modalCancel.click();
+  }
+});
+
+/** 鍒濆鍖?*/
+resetCards();
+state = S.INIT;
+setStep("绛夊緟寮€濮?);
+setStatus("鏈惎鍔?);
+applyState();
+</script>
+</body>
+</html>
+
+

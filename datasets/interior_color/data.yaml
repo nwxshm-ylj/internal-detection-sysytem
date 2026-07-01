@@ -1,0 +1,7 @@
+path: datasets/interior_color
+train: images/train
+val: images/val
+
+names:
+  0: panel_color
+  1: armrest_color

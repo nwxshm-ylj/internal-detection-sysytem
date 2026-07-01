@@ -1,0 +1,56 @@
+# =========================
+# Python cache
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Virtual environment
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+*.log
+flask_run.log
+
+# =========================
+# Flask / local instance
+# =========================
+instance/
+*.sqlite
+*.sqlite3
+*.db
+
+# =========================
+# Upload / generated files
+# =========================
+uploads/
+
+# 如果 datasets / test_data 是本地测试数据，不想上传 GitHub，也可以忽略
+# datasets/
+# test_data/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
